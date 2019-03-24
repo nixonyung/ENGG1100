@@ -1,0 +1,163 @@
+const int MOTOR_LEFT_DIRECTION_PIN1 = 4;
+const int MOTOR_LEFT_DIRECTION_PIN2 = 5;
+const int MOTOR_LEFT_PWN_PIN = 3;
+const int MOTOR_RIGHT_DIRECTION_PIN1 = 7;
+const int MOTOR_RIGHT_DIRECTION_PIN2 = 8;
+const int MOTOR_RIGHT_PWN_PIN = 6;
+const int SERVO_PIN = 9;
+
+char incoming_char = 0;
+int negative_multiplier = 1;
+int left_motor_number = 0;
+int right_motor_number = 0;
+int servo_angle = 0;
+
+void setup() {
+  // put your setup code here, to run once:
+  pinMode(MOTOR_LEFT_DIRECTION_PIN1, OUTPUT);
+  pinMode(MOTOR_LEFT_DIRECTION_PIN2, OUTPUT);
+  pinMode(MOTOR_LEFT_PWN_PIN, OUTPUT);
+  pinMode(MOTOR_RIGHT_DIRECTION_PIN1, OUTPUT);
+  pinMode(MOTOR_RIGHT_DIRECTION_PIN2, OUTPUT);
+  pinMode(MOTOR_RIGHT_PWN_PIN, OUTPUT);
+  pinMode(SERVO_PIN, OUTPUT);
+  Serial.begin(9600);
+}
+
+void loop() {
+  /********** Read number **********/
+
+  if (Serial.available() > 0) {     // If anything is ready to be read
+
+    incoming_char = Serial.read();    // This should read a "1"
+    delay(3);         // small delay to wait for another char
+
+    /***** for left motor *****/
+    if (incoming_char == '1') {
+
+      incoming_char = Serial.read();    // This should read a ":"
+      delay(3);
+      if (incoming_char == ':') {
+
+        incoming_char = Serial.read();    // This should read a "-" or any number
+        delay(3);
+
+        // If "-" is read
+        negative_multiplier = 1;
+        if (incoming_char == '-') {
+          negative_multiplier = -1;       // make everything negative
+          incoming_char = Serial.read();    // Start reading the number
+          delay(3);
+        }
+
+        // Start reading the number
+        left_motor_number = 0;
+        while (incoming_char != '&') {      // read until the end of the message
+          left_motor_number *= 10;
+          left_motor_number += (incoming_char - 48) * negative_multiplier;    // change from char (ASCII) to int
+          delay(3);
+          incoming_char = Serial.read();
+        }
+      }
+
+      // boundary checking
+      constrain(left_motor_number, -255, 255);
+    }
+
+    /***** for right motor *****/
+    else if (incoming_char == '2') {
+
+      incoming_char = Serial.read();    // This should read a ":"
+      delay(3);
+      if (incoming_char == ':') {
+
+        incoming_char = Serial.read();    // This should read a "-" or any number
+        delay(3);
+
+        // If "-" is read
+        negative_multiplier = 1;
+        if (incoming_char == '-') {
+          negative_multiplier = -1;       // make everything negative
+          incoming_char = Serial.read();    // Start reading the number
+          delay(3);
+        }
+
+        // Start reading the number
+        right_motor_number = 0;
+        while (incoming_char != '&') {      // read until the end of the message
+          right_motor_number *= 10;
+          right_motor_number += (incoming_char - 48) * negative_multiplier;    // change from char (ASCII) to int
+          delay(3);
+          incoming_char = Serial.read();
+        }
+      }
+
+      // boundary checking
+      constrain(right_motor_number, -255, 255);
+    }
+
+
+    /***** for servo *****/
+    else if (incoming_char == '3') {
+
+      incoming_char = Serial.read();    // This should read a ":"
+      delay(3);
+      if (incoming_char == ':') {
+
+        incoming_char = Serial.read();    // This should read a "-" or any number
+        delay(3);
+
+        // Start reading the number
+        servo_angle = 0;
+        while (incoming_char != '&') {      // read until the end of the message
+          servo_angle *= 10;
+          servo_angle += (incoming_char - 48);    // change from char (ASCII) to int
+          delay(3);
+          incoming_char = Serial.read();
+        }
+      }
+
+      // boundary checking
+      constrain(servo_angle, 0, 180);
+    }
+
+  }
+
+  /********** Update Motor and servo **********/
+  // Left_Motor
+  if (left_motor_number >= 0) {
+    digitalWrite(MOTOR_LEFT_DIRECTION_PIN1, HIGH);
+    digitalWrite(MOTOR_LEFT_DIRECTION_PIN2, LOW);
+    analogWrite(MOTOR_LEFT_PWN_PIN, left_motor_number);
+  }
+  else {
+    digitalWrite(MOTOR_LEFT_DIRECTION_PIN1, LOW);
+    digitalWrite(MOTOR_LEFT_DIRECTION_PIN2, HIGH);
+    analogWrite(MOTOR_LEFT_PWN_PIN, -left_motor_number);
+  }
+
+  // Right_Motor
+  if (right_motor_number >= 0) {
+    digitalWrite(MOTOR_RIGHT_DIRECTION_PIN1, HIGH);
+    digitalWrite(MOTOR_RIGHT_DIRECTION_PIN2, LOW);
+    analogWrite(MOTOR_RIGHT_PWN_PIN, right_motor_number);
+  }
+  else {
+    digitalWrite(MOTOR_RIGHT_DIRECTION_PIN1, LOW);
+    digitalWrite(MOTOR_RIGHT_DIRECTION_PIN2, HIGH);
+    analogWrite(MOTOR_RIGHT_PWN_PIN, -right_motor_number);
+  }
+
+  // servo
+  servo_angle = map(servo_angle, 0, 180, 0, 255);
+  analogWrite(SERVO_PIN, servo_angle);
+
+
+
+  // flush the buffer if too many char in the buffer
+  if (Serial.available() > 20) {
+    Serial.flush();
+  }
+  
+}
+
