@@ -1,11 +1,11 @@
 # ENGG1100
 
 Three things here:
-1. AppNMotorDemo Sketch
+* AppNMotorDemo Sketch
     The Arduino code used
    
-2. aia file
+* aia file
     Source file for App Inventor app
     
-3. apk file
+* apk file
     The app used
