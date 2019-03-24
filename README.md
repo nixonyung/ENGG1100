@@ -2,10 +2,10 @@
 
 Three things here:
 * AppNMotorDemo Sketch
-    The Arduino code used
+    * The Arduino code used
    
 * aia file
-    Source file for App Inventor app
+    * Source file for App Inventor app
     
 * apk file
-    The app used
+    * The app used
