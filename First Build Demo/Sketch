@@ -1,0 +1,165 @@
+/*
+ * Reference for Arduino code:
+ * https://www.arduino.cc/reference/en/
+ * 
+ * Format of Bluetooth message:
+ * <motor no(1/2) / servo(3)>:<power(-255-255) / angle(0-180)>&
+ * e.g. 
+ *      1:123&    ==>   left motor, forward, duty cycle = 123/255
+ *      2:-50&    ==>   right motor, backward, duty cycle = 50/255
+ *      3:60&     ==>   servo, angle = 60 (middle is 90)
+ * 
+ * Elec things:
+ * 1. App send messages to Bluetooth module (powered by breakout board)
+ * 2. Bluetooth module send messages to Arduino
+ * 3. Arduino reads the messages and decodes it (by using this code)
+ * 4. Arduino sends signals to motor driver (gives direction by digital signals (HIGH/LOW))(give power by PWM signals)
+ * 5. Motor driver then runs the motors       // see HKMOOC for detailed information
+ * 
+ * Program flow:
+ * 1. define pins to be used
+ * 2. set pinMode and baud rate
+ * (main program starts)
+ * 3. reads and decodes messages
+ * 4. gives signals out accordingly
+ */
+
+/***** Pins to be used *****/
+const int MOTOR_LEFT_DIRECTION_PIN1 = 4;
+const int MOTOR_LEFT_DIRECTION_PIN2 = 5;
+const int MOTOR_LEFT_PWN_PIN = 3;
+const int MOTOR_RIGHT_DIRECTION_PIN1 = 7;
+const int MOTOR_RIGHT_DIRECTION_PIN2 = 8;
+const int MOTOR_RIGHT_PWN_PIN = 6;
+
+/***** variables to be used *****/
+char incoming_char = 0;     // read a character from Bluetooth
+int negative_multiplier = 1;    // for reading negative number (backward motion for motor)
+int left_motor_number = 0;      // for reading duty cycle for left motor
+int right_motor_number = 0;     // for reading duty cycle for right motor
+
+void setup() {
+  // set all pins to OUTPUT
+  pinMode(MOTOR_LEFT_DIRECTION_PIN1, OUTPUT);
+  pinMode(MOTOR_LEFT_DIRECTION_PIN2, OUTPUT);
+  pinMode(MOTOR_LEFT_PWN_PIN, OUTPUT);
+  pinMode(MOTOR_RIGHT_DIRECTION_PIN1, OUTPUT);
+  pinMode(MOTOR_RIGHT_DIRECTION_PIN2, OUTPUT);
+  pinMode(MOTOR_RIGHT_PWN_PIN, OUTPUT);
+  
+  // set baud rate for Serial (9600 for Bluetooth)
+  Serial.begin(9600);
+}
+
+void loop() {
+  /********** Read number **********/
+  if (Serial.available() > 0) {     // If anything is ready to be read
+
+    incoming_char = Serial.read();    // This should read a "1" or "2" or "3"
+    delay(3);         // small delay to wait for another char
+
+    /***** for left motor *****/
+    if (incoming_char == '1') {     // "1" means left motor
+
+      incoming_char = Serial.read();    // This should read a ":"
+      delay(3);
+      if (incoming_char == ':') {
+
+        incoming_char = Serial.read();    // This should read a "-" or any number
+        delay(3);
+
+        // If "-" is read
+        negative_multiplier = 1;
+        if (incoming_char == '-') {
+          negative_multiplier = -1;       // make everything negative
+          incoming_char = Serial.read();    // Start reading the number
+          delay(3);
+        }
+
+        // Start reading the number
+        left_motor_number = 0;
+        while (incoming_char != '&') {      // read until the end of the message
+          left_motor_number *= 10;
+          left_motor_number += (incoming_char - 48) * negative_multiplier;    // change from char (ASCII) to int
+          delay(3);
+          incoming_char = Serial.read();
+        }
+      }
+
+      // boundary checking
+      constrain(left_motor_number, -255, 255);      // see Reference for constrain, basically it fix the range of the number to [-255,255]
+    }
+
+    /***** for right motor *****/
+    else if (incoming_char == '2') {    // "2" means right motor
+
+      incoming_char = Serial.read();    // This should read a ":"
+      delay(3);
+      if (incoming_char == ':') {
+
+        incoming_char = Serial.read();    // This should read a "-" or any number
+        delay(3);
+
+        // If "-" is read
+        negative_multiplier = 1;
+        if (incoming_char == '-') {
+          negative_multiplier = -1;       // make everything negative
+          incoming_char = Serial.read();    // Start reading the number
+          delay(3);
+        }
+
+        // Start reading the number
+        right_motor_number = 0;
+        while (incoming_char != '&') {      // read until the end of the message
+          right_motor_number *= 10;
+          right_motor_number += (incoming_char - 48) * negative_multiplier;    // change from char (ASCII) to int
+          delay(3);
+          incoming_char = Serial.read();
+        }
+      }
+
+      // boundary checking
+      constrain(right_motor_number, -255, 255);
+    }
+
+  }
+
+  /********** Update Motor and servo **********/
+  /***** Left_Motor *****/
+  if (left_motor_number >= 0) {
+    // set direction to forward
+    digitalWrite(MOTOR_LEFT_DIRECTION_PIN1, HIGH);
+    digitalWrite(MOTOR_LEFT_DIRECTION_PIN2, LOW);
+    // set duty cycle
+    analogWrite(MOTOR_LEFT_PWN_PIN, left_motor_number);
+  }
+  else {
+    // set direction to backward
+    digitalWrite(MOTOR_LEFT_DIRECTION_PIN1, LOW);
+    digitalWrite(MOTOR_LEFT_DIRECTION_PIN2, HIGH);
+    // set duty cycle
+    analogWrite(MOTOR_LEFT_PWN_PIN, -left_motor_number);      // signal should be positive, so there is a negative sign
+  }
+
+  /***** Right_Motor *****/
+  if (right_motor_number >= 0) {
+    // set direction to forward
+    digitalWrite(MOTOR_RIGHT_DIRECTION_PIN1, HIGH);
+    digitalWrite(MOTOR_RIGHT_DIRECTION_PIN2, LOW);
+    // set duty cycle
+    analogWrite(MOTOR_RIGHT_PWN_PIN, right_motor_number);
+  }
+  else {
+    // set direction to backward
+    digitalWrite(MOTOR_RIGHT_DIRECTION_PIN1, LOW);
+    digitalWrite(MOTOR_RIGHT_DIRECTION_PIN2, HIGH);
+    // set duty cycle
+    analogWrite(MOTOR_RIGHT_PWN_PIN, -right_motor_number);    // signal should be positive, so there is a negative sign
+  }
+
+  /***** flush the buffer if too many char in the buffer *****/
+  if (Serial.available() > 20) {
+    Serial.flush();
+  }
+  
+}
